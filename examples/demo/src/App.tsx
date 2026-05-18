@@ -112,7 +112,7 @@ function PublishPage({
   isVisible: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const publisherRef = useRef<SrsRtcWhipWhepAsync | SrsPublisher | null>(null)
+  const publisherRef = useRef<SrsPublisher | null>(null)
   const [publishStatus, setPublishStatus] = useState<'idle' | 'publishing'>('idle')
   const [publishError, setPublishError] = useState('')
   const [sessionInfo, setSessionInfo] = useState<RtcSessionInfo | null>(null)
@@ -159,33 +159,15 @@ function PublishPage({
 
     try {
       if (publisherRef.current) {
-        if (publisherRef.current instanceof SrsRtcWhipWhepAsync) {
-          await publisherRef.current.close()
-        } else {
-          await publisherRef.current.stop()
-        }
+        await publisherRef.current.stop()
       }
 
-      let session: RtcSessionInfo
-
-      if (config.pushUrl.includes('/rtc/v1/publish/')) {
-        // Use SRS JSON API
-        const publisher = new SrsPublisher(config.pushUrl, config.roomId, config.streamName)
-        publisherRef.current = publisher
-        session = await publisher.publish(previewStream, {
-          audio: true,
-          video: true,
-        })
-      } else {
-        // Use WHIP
-        const sdk = new SrsRtcWhipWhepAsync()
-        publisherRef.current = sdk
-        session = await sdk.publish(config.pushUrl, previewStream, {
-          audio: true,
-          video: true,
-        })
-      }
-
+      const publisher = new SrsPublisher(config.pushUrl, config.roomId, config.streamName)
+      publisherRef.current = publisher
+      const session = await publisher.publish(previewStream, {
+        audio: true,
+        video: true,
+      })
       setSessionInfo(session)
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : '推流失败')
@@ -199,11 +181,7 @@ function PublishPage({
     setSessionInfo(null)
 
     if (publisherRef.current) {
-      if (publisherRef.current instanceof SrsRtcWhipWhepAsync) {
-        await publisherRef.current.close()
-      } else {
-        await publisherRef.current.stop()
-      }
+      await publisherRef.current.stop()
       publisherRef.current = null
     }
   }
@@ -328,7 +306,7 @@ function PublishPage({
           {publishError ? <div className="notice notice--error">{publishError}</div> : null}
           {error ? <div className="notice notice--error">{error}</div> : null}
           <div className="notice">
-            说明：推流地址支持 WHIP (webrtc://...) 和 SRS JSON API (https://.../rtc/v1/publish/)。
+            说明：推流地址支持 `webrtc://...` / `rtc://...` 以及 SRS JSON API (`https://.../rtc/v1/publish/`)；发布参数会通过 POST body 发送，不再拼接 query。
           </div>
         </article>
 

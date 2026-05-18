@@ -29,7 +29,7 @@ interface ConfigContextValue {
 const STORAGE_KEY = 'm-merging-demo-config'
 
 const DEFAULT_CONFIG: DemoConfig = {
-  pushUrl: 'webrtc://srs.idealjs.com/live/livestream',
+  pushUrl: 'https://srs.idealjs.com/rtc/v1/publish/',
   playUrl: 'webrtc://srs.idealjs.com/live/livestream',
   playProtocol: 'rtc',
   roomId: 'live',

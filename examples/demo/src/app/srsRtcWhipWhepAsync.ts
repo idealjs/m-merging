@@ -14,6 +14,20 @@ export interface PublishOptions {
   video?: boolean
 }
 
+export function buildPublishUrlFromPushUrl(_url: string): string {
+  return `https://srs.idealjs.com/rtc/v1/publish/`
+}
+
+export function buildStreamUrlFromPushUrl(url: string, roomId?: string, streamName?: string): string {
+  const normalizedUrl = url.replace(/^rtc:\/\//, 'http://').replace(/^webrtc:\/\//, 'http://')
+  const parsedUrl = new URL(normalizedUrl)
+  const pathSegments = parsedUrl.pathname.split('/').filter(Boolean)
+  const app = roomId || pathSegments[0] || 'live'
+  const stream = streamName || pathSegments[pathSegments.length - 1] || 'livestream'
+
+  return `webrtc://${parsedUrl.hostname}/${app}/${stream}`
+}
+
 /**
  * SrsRtcWhipWhepAsync - Modern WHIP/WHEP WebRTC implementation
  * Supports WebRTC publishing and playback over HTTP
@@ -37,7 +51,8 @@ export class SrsRtcWhipWhepAsync {
   async publish(
     url: string,
     mediaStream: MediaStream,
-    options: PublishOptions = { audio: true, video: true }
+    _options: PublishOptions = { audio: true, video: true },
+    streamUrl?: string
   ): Promise<RtcSessionInfo> {
     try {
       // Close existing connection
@@ -88,16 +103,33 @@ export class SrsRtcWhipWhepAsync {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/sdp',
+          'Content-Type': 'application/json',
         },
-        body: sdp,
+        body: JSON.stringify({
+          sdp,
+          streamurl: streamUrl,
+          api: url,
+        }),
       })
 
       if (!response.ok) {
         throw new Error(`WHIP request failed: ${response.status} ${response.statusText}`)
       }
 
-      const answerSdp = await response.text()
+      const responseText = await response.text()
+      let answerSdp = responseText
+      let sessionid = this.generateSessionId()
+
+      try {
+        const responseJson = JSON.parse(responseText) as { sdp?: string; sid?: string; sessionid?: string }
+        if (responseJson.sdp) {
+          answerSdp = responseJson.sdp
+        }
+        sessionid = responseJson.sid || responseJson.sessionid || sessionid
+      } catch {
+        // Keep raw SDP bodies for compatibility.
+      }
+
       const answer = new RTCSessionDescription({
         type: 'answer',
         sdp: answerSdp,
@@ -105,8 +137,8 @@ export class SrsRtcWhipWhepAsync {
 
       await this.pc.setRemoteDescription(answer)
 
-      // Extract session ID from response location header or generate one
-      this.sessionid = response.headers.get('Location')?.split('/').pop() || this.generateSessionId()
+      // Extract session ID from JSON response or generate one.
+      this.sessionid = sessionid
 
       return {
         sessionid: this.sessionid,
@@ -242,12 +274,13 @@ export class SrsPublisher {
     options: PublishOptions = { audio: true, video: true }
   ): Promise<RtcSessionInfo> {
     try {
-      // Construct the WHIP URL for SRS
-      // SRS JSON API uses: https://server/rtc/v1/publish/?app=live&stream=stream_name
-      const whipUrl = this.buildWhipUrl()
+      // Construct the SRS publish URL.
+      // Support both SRS JSON API and legacy webrtc:// URLs.
+      const publishUrl = buildPublishUrlFromPushUrl(this.url)
+      const streamUrl = buildStreamUrlFromPushUrl(this.url, this.roomId, this.streamName)
 
-      // Use the underlying WHIP implementation
-      return await this.rtc.publish(whipUrl, mediaStream, options)
+      // Use the underlying WebRTC implementation.
+      return await this.rtc.publish(publishUrl, mediaStream, options, streamUrl)
     } catch (error) {
       throw error
     }
@@ -260,47 +293,5 @@ export class SrsPublisher {
     await this.rtc.close()
   }
 
-  private buildWhipUrl(): string {
-    // Parse the SRS JSON API URL and construct WHIP URL
-    // Convert: https://server/rtc/v1/publish/ -> https://server/rtc/v1/whip/?app=app&stream=stream
-    const baseUrl = this.url.replace(/\/rtc\/v1\/publish\/$/, '')
-    const params = new URLSearchParams({
-      app: this.roomId || 'live',
-      stream: this.streamName || 'stream',
-    })
-    return `${baseUrl}/rtc/v1/whip/?${params.toString()}`
-  }
 }
 
-// Attach global functions for backward compatibility with Flash callbacks
-declare global {
-  interface Window {
-    __srs_find_publisher?: (id: number) => SrsPublisher
-    __srs_on_publisher_ready?: (id: number, cameras: string[], microphones: string[]) => void
-    __srs_on_publisher_error?: (id: number, code: number) => void
-    __srs_on_publisher_warn?: (id: number, code: number) => void
-  }
-}
-
-// Publisher registry for callback compatibility
-const publisherRegistry = new Map<number, SrsPublisher>()
-let publisherId = 100
-
-function registerPublisher(publisher: SrsPublisher): number {
-  const id = publisherId++
-  publisherRegistry.set(id, publisher)
-  return id
-}
-
-function findPublisher(id: number): SrsPublisher {
-  const publisher = publisherRegistry.get(id)
-  if (!publisher) {
-    throw new Error(`Publisher not found: ${id}`)
-  }
-  return publisher
-}
-
-// Export global functions
-if (typeof window !== 'undefined') {
-  window.__srs_find_publisher = (id: number) => findPublisher(id)
-}
