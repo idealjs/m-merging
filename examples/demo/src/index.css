@@ -1,0 +1,87 @@
+:root {
+  --bg: #07111f;
+  --bg-soft: #0b1729;
+  --surface: rgba(10, 18, 34, 0.82);
+  --surface-strong: rgba(13, 22, 42, 0.95);
+  --text: #a8b5c8;
+  --text-muted: #7f8ea7;
+  --text-strong: #f5f8ff;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #45c8b0;
+  --accent-2: #3d7eff;
+  --shadow-sm: 0 12px 28px rgba(2, 8, 23, 0.16);
+  --shadow-lg: 0 28px 70px rgba(2, 8, 23, 0.32);
+  --sans: 'Inter', 'Avenir Next', 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    sans-serif;
+  --mono: 'SFMono-Regular', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+
+  font: 16px/1.6 var(--sans);
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(61, 126, 255, 0.15), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(69, 200, 176, 0.12), transparent 30%),
+    linear-gradient(180deg, #06101d 0%, #081225 45%, #040913 100%);
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: transparent;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+img,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-strong);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+code {
+  font-family: var(--mono);
+}
