@@ -69,6 +69,5 @@ export function useDisplayShare() {
     error,
     isSharingDisplay,
     startDisplayShare,
-    stopDisplayShare,
   };
 }
